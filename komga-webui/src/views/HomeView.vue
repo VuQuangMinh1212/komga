@@ -147,6 +147,10 @@
               <v-list-item-title>{{ $t('common.books') }}</v-list-item-title>
             </v-list-item>
 
+            <v-list-item :to="{name: 'upload-books'}">
+              <v-list-item-title>{{ $t('book_upload.title') }}</v-list-item-title>
+            </v-list-item>
+
             <v-list-item :to="{name: 'import-readlist'}">
               <v-list-item-title>{{ $t('common.readlist') }}</v-list-item-title>
             </v-list-item>

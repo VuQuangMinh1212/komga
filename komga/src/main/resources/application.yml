@@ -31,6 +31,11 @@ komga:
   jdbc-session-enabled: true
 
 spring:
+  servlet:
+    multipart:
+      # custom: allow uploading whole volumes (Spring default is 1MB/file)
+      max-file-size: 2GB
+      max-request-size: 4GB
   session:
     jdbc:
       # top of every hour

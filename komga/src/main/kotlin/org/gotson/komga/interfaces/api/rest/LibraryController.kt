@@ -42,8 +42,13 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.server.ResponseStatusException
 import java.io.FileNotFoundException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+
+private val UPLOAD_EXTENSIONS = setOf("cbz", "cbr", "cb7", "cbt", "zip", "rar", "7z", "pdf", "epub")
 
 @RestController
 @RequestMapping("api/v1/libraries", produces = [MediaType.APPLICATION_JSON_VALUE])
@@ -234,6 +239,62 @@ class LibraryController(
     libraryRepository.findByIdOrNull(libraryId)?.let { library ->
       taskEmitter.scanLibrary(library.id, deep, HIGHEST_PRIORITY)
     } ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+  }
+
+  @PostMapping("{libraryId}/upload", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+  @PreAuthorize("hasRole('ADMIN')")
+  @ResponseStatus(HttpStatus.ACCEPTED)
+  @Operation(
+    summary = "Upload book files into a library",
+    description = "Files are stored in a folder named after the series, directly under the library root, then a scan is triggered. Existing files are never overwritten.",
+  )
+  fun libraryUpload(
+    @PathVariable libraryId: String,
+    @RequestParam series: String,
+    @RequestParam("files") files: List<MultipartFile>,
+  ): List<String> {
+    val library = libraryRepository.findByIdOrNull(libraryId) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
+
+    val seriesDir = series.trim()
+    if (seriesDir.isEmpty() || seriesDir.startsWith(".") || seriesDir.any { it == '/' || it == '\\' || it.isISOControl() })
+      throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid series name")
+    if (files.isEmpty()) throw ResponseStatusException(HttpStatus.BAD_REQUEST, "No files")
+
+    // validate everything before writing anything
+    val root = library.path.toAbsolutePath().normalize()
+    val dir = root.resolve(seriesDir).normalize()
+    if (dir.parent != root) throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid series name")
+
+    val targets =
+      files.map { file ->
+        val name =
+          file.originalFilename
+            .orEmpty()
+            .substringAfterLast('/')
+            .substringAfterLast('\\')
+            .trim()
+        if (name.isEmpty() || name.startsWith(".") || name.any { it.isISOControl() } || name.substringAfterLast('.', "").lowercase() !in UPLOAD_EXTENSIONS)
+          throw ResponseStatusException(HttpStatus.BAD_REQUEST, "File type not allowed: $name")
+        val target = dir.resolve(name).normalize()
+        if (target.parent != dir) throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file name: $name")
+        if (Files.exists(target)) throw ResponseStatusException(HttpStatus.CONFLICT, "File already exists: $name")
+        file to target
+      }
+
+    Files.createDirectories(dir)
+    targets.forEach { (file, target) ->
+      // write to a hidden temp name first so a scan never sees a partial file
+      val tmp = Files.createTempFile(dir, ".upload-", ".tmp")
+      try {
+        file.inputStream.use { Files.copy(it, tmp, StandardCopyOption.REPLACE_EXISTING) }
+        Files.move(tmp, target)
+      } finally {
+        Files.deleteIfExists(tmp)
+      }
+    }
+
+    taskEmitter.scanLibrary(library.id, false, HIGHEST_PRIORITY)
+    return targets.map { root.relativize(it.second).toString().replace('\\', '/') }
   }
 
   @PostMapping("{libraryId}/analyze")

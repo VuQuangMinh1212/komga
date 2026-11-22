@@ -61,6 +61,16 @@
     "unread": "Unread",
     "unsupported": "Unsupported"
   },
+  "book_upload": {
+    "button_upload": "Upload",
+    "done": "Uploaded {count} file(s). The library is being scanned.",
+    "files": "Files (cbz, cbr, cb7, pdf, epub...)",
+    "info": "Upload book files from this computer into a library. Files go into a folder named after the series, then the library is scanned. Existing files are never overwritten.",
+    "library": "Library",
+    "series": "Series folder",
+    "series_hint": "Pick an existing series or type a new name",
+    "title": "Upload"
+  },
   "book_import": {
     "button_browse": "Browse",
     "button_import": "Import",

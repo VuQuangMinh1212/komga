@@ -274,6 +274,12 @@ const router = new Router({
           component: () => import(/* webpackChunkName: "import-books" */ './views/ImportBooks.vue'),
         },
         {
+          path: '/import/upload',
+          name: 'upload-books',
+          beforeEnter: adminGuard,
+          component: () => import(/* webpackChunkName: "upload-books" */ './views/UploadBooks.vue'),
+        },
+        {
           path: '/import/readlist',
           name: 'import-readlist',
           beforeEnter: adminGuard,

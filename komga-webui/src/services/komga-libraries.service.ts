@@ -84,6 +84,24 @@ export default class KomgaLibrariesService {
     }
   }
 
+  async uploadBooks(libraryId: string, series: string, files: File[], onProgress: (percent: number) => void) {
+    const form = new FormData()
+    form.append('series', series)
+    files.forEach(f => form.append('files', f))
+    try {
+      await this.http.post(`${API_LIBRARIES}/${libraryId}/upload`, form, {
+        onUploadProgress: (e: ProgressEvent) => e.total && onProgress(Math.round(100 * e.loaded / e.total)),
+        timeout: 0,
+      })
+    } catch (e) {
+      let msg = 'An error occurred while trying to upload files'
+      if (e.response && e.response.data.message) {
+        msg += `: ${e.response.data.message}`
+      }
+      throw new Error(msg)
+    }
+  }
+
   async analyzeLibrary(library: LibraryDto) {
     try {
       await this.http.post(`${API_LIBRARIES}/${library.id}/analyze`)
