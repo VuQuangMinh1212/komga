@@ -1,0 +1,68 @@
+name: Build custom image
+
+# Builds the fork's `custom` branch into ghcr.io/<owner>/komga (amd64).
+on:
+  push:
+    branches: [custom]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: WebUI - Setup
+        uses: ./.github/actions/setup-web
+        with:
+          working-directory: komga-webui
+      - name: WebUI - build
+        working-directory: komga-webui
+        run: npm run build
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+
+      - name: NextUI - Setup
+        uses: ./.github/actions/setup-web
+        with:
+          working-directory: next-ui
+      - name: NextUI - build
+        working-directory: next-ui
+        run: npm run build:with-i18n
+
+      - uses: actions/setup-java@v6
+        with:
+          java-version: 21
+          java-package: jdk
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v6.4.1
+      - name: Build jar
+        run: ./gradlew :komga:webuiCopyIndex :komga:nextuiCopyIndex :komga:bootJar
+
+      - name: Compute image name and jar
+        id: meta
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "jar=$(ls komga/build/libs/komga-*.jar | grep -v plain | head -n1)" >> "$GITHUB_OUTPUT"
+          echo "version=$(sed -n 's/^version=//p' gradle.properties)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.custom
+          build-args: JAR=${{ steps.meta.outputs.jar }}
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:custom
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}-custom-${{ github.sha }}

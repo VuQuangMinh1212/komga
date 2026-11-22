@@ -1,0 +1,32 @@
+# Custom image for the fork (amd64 only). Adapted from komga/docker/Dockerfile.tpl.
+# Build: ./gradlew :komga:webuiCopyIndex :komga:nextuiCopyIndex :komga:bootJar
+#        docker build -f Dockerfile.custom --build-arg JAR=komga/build/libs/<jar> .
+FROM eclipse-temurin:17-jre AS builder
+ARG JAR
+WORKDIR /builder
+COPY ${JAR} application.jar
+RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
+
+FROM ubuntu:26.04 AS runner
+ENV JAVA_HOME=/opt/java/openjdk
+COPY --from=eclipse-temurin:25-jre $JAVA_HOME $JAVA_HOME
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+RUN apt -y update && \
+    apt -y install ca-certificates locales libjxl-dev libheif-dev libwebp-dev wget curl && \
+    echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && \
+    locale-gen en_US.UTF-8 && \
+    wget "https://github.com/pgaskin/kepubify/releases/latest/download/kepubify-linux-64bit" -O /usr/bin/kepubify && \
+    chmod +x /usr/bin/kepubify && \
+    apt -y autoremove && rm -rf /var/lib/apt/lists/*
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/lib/x86_64-linux-gnu"
+
+VOLUME /config
+WORKDIR /app
+COPY --from=builder /builder/extracted/dependencies/ ./
+COPY --from=builder /builder/extracted/spring-boot-loader/ ./
+COPY --from=builder /builder/extracted/snapshot-dependencies/ ./
+COPY --from=builder /builder/extracted/application/ ./
+ENV KOMGA_CONFIGDIR="/config"
+ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
+ENTRYPOINT ["java", "-Dspring.profiles.include=docker", "--enable-native-access=ALL-UNNAMED", "-jar", "application.jar", "--spring.config.additional-location=file:/config/"]
+EXPOSE 25600
