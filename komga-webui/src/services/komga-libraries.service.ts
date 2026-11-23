@@ -84,21 +84,32 @@ export default class KomgaLibrariesService {
     }
   }
 
-  async uploadBooks(libraryId: string, series: string, files: File[], onProgress: (percent: number) => void) {
+  async uploadBooks(
+    libraryId: string,
+    series: string,
+    files: File[],
+    onProgress: (percent: number) => void,
+    options: { scan?: boolean, signal?: AbortSignal } = {},
+  ) {
     const form = new FormData()
     form.append('series', series)
+    form.append('scan', String(options.scan !== false))
     files.forEach(f => form.append('files', f))
     try {
       await this.http.post(`${API_LIBRARIES}/${libraryId}/upload`, form, {
-        onUploadProgress: (e: ProgressEvent) => e.total && onProgress(Math.round(100 * e.loaded / e.total)),
+        onUploadProgress: (e) => { if (e.total) onProgress(Math.round(100 * e.loaded / e.total)) },
         timeout: 0,
+        signal: options.signal,
       })
     } catch (e) {
       let msg = 'An error occurred while trying to upload files'
-      if (e.response && e.response.data.message) {
+      if (e.response && e.response.data && e.response.data.message) {
         msg += `: ${e.response.data.message}`
       }
-      throw new Error(msg)
+      const err = new Error(msg) as Error & { status?: number, cancelled?: boolean }
+      err.status = e.response && e.response.status
+      err.cancelled = e.code === 'ERR_CANCELED'
+      throw err
     }
   }
 

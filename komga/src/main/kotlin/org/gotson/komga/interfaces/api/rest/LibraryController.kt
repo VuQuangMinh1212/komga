@@ -252,6 +252,8 @@ class LibraryController(
     @PathVariable libraryId: String,
     @RequestParam series: String,
     @RequestParam("files") files: List<MultipartFile>,
+    @Parameter(description = "Scan the library after the upload. Clients uploading several files one by one set it to false and call the scan endpoint once at the end.")
+    @RequestParam(defaultValue = "true") scan: Boolean,
   ): List<String> {
     val library = libraryRepository.findByIdOrNull(libraryId) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND)
 
@@ -293,7 +295,7 @@ class LibraryController(
       }
     }
 
-    taskEmitter.scanLibrary(library.id, false, HIGHEST_PRIORITY)
+    if (scan) taskEmitter.scanLibrary(library.id, false, HIGHEST_PRIORITY)
     return targets.map { root.relativize(it.second).toString().replace('\\', '/') }
   }
 

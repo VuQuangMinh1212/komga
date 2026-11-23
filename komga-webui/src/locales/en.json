@@ -63,13 +63,24 @@
   },
   "book_upload": {
     "button_upload": "Upload",
+    "cancel": "Cancel",
+    "clear_finished": "Clear finished",
     "done": "Uploaded {count} file(s). The library is being scanned.",
-    "files": "Files (cbz, cbr, cb7, pdf, epub...)",
-    "info": "Upload book files from this computer into a library. Files go into a folder named after the series, then the library is scanned. Existing files are never overwritten.",
+    "files": "Add files (cbz, cbr, cb7, pdf, epub...)",
+    "info": "Add files, then press Upload. Files are uploaded one at a time into a folder named after the series; files that already exist are skipped, and the library is scanned once at the end.",
     "library": "Library",
+    "retry": "Retry",
     "series": "Series folder",
     "series_hint": "Pick an existing folder, or type a new name to create one",
     "series_hint_new": "New folder \"{name}\" will be created on upload",
+    "status": {
+      "done": "Uploaded",
+      "error": "Failed",
+      "exists": "Already exists, skipped",
+      "pending": "Waiting",
+      "uploading": "Uploading"
+    },
+    "summary": "{done} uploaded · {skipped} skipped · {failed} failed · {waiting} waiting",
     "title": "Upload"
   },
   "book_import": {
