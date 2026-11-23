@@ -68,7 +68,8 @@
     "info": "Upload book files from this computer into a library. Files go into a folder named after the series, then the library is scanned. Existing files are never overwritten.",
     "library": "Library",
     "series": "Series folder",
-    "series_hint": "Pick an existing series or type a new name",
+    "series_hint": "Pick an existing folder, or type a new name to create one",
+    "series_hint_new": "New folder \"{name}\" will be created on upload",
     "title": "Upload"
   },
   "book_import": {

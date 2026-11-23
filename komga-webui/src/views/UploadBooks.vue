@@ -18,8 +18,10 @@
           v-model="series"
           :items="seriesFolders"
           :label="$t('book_upload.series')"
-          :hint="$t('book_upload.series_hint')"
+          :hint="seriesHint"
           persistent-hint
+          clearable
+          @update:search-input="onType"
         />
       </v-col>
     </v-row>
@@ -65,7 +67,12 @@ export default Vue.extend({
       return this.$store.state.komgaLibraries.libraries
     },
     canUpload(): boolean {
-      return !!this.libraryId && !!this.series && this.files.length > 0 && !this.uploading
+      return !!this.libraryId && !!(this.series || '').trim() && this.files.length > 0 && !this.uploading
+    },
+    seriesHint(): string {
+      const name = (this.series || '').trim()
+      if (name && !this.seriesFolders.includes(name)) return this.$t('book_upload.series_hint_new', {name}).toString()
+      return this.$t('book_upload.series_hint').toString()
     },
   },
   watch: {
@@ -75,18 +82,22 @@ export default Vue.extend({
     if (this.libraries.length > 0) this.libraryId = this.libraries[0].id
   },
   methods: {
+    onType(text: string | null) {
+      // a typed name counts right away, no need to press Enter
+      if (text) this.series = text
+    },
     async loadSeriesFolders() {
       // series folder = last segment of the series path, so uploads land in the existing folder
       const all = (await this.$komgaSeries.getSeriesList({} as SeriesSearch, {unpaged: true})).content
       this.seriesFolders = [...new Set(all
-        .filter(s => s.libraryId === this.libraryId)
+        .filter(s => s.libraryId === this.libraryId && !s.deleted) // skip series in Komga's trash
         .map(s => s.url.replace(/[\\/]+$/, '').split(/[\\/]/).pop() as string))].sort()
     },
     async upload() {
       this.uploading = true
       this.progress = 0
       try {
-        await this.$komgaLibraries.uploadBooks(this.libraryId, this.series, this.files, p => this.progress = p)
+        await this.$komgaLibraries.uploadBooks(this.libraryId, this.series.trim(), this.files, p => this.progress = p)
         this.$eventHub.$emit(NOTIFICATION, {message: this.$t('book_upload.done', {count: this.files.length}).toString()})
         this.files = []
         await this.loadSeriesFolders()
